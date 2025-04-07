@@ -48,13 +48,37 @@ class ProductService {
   static async create(productData) {
     try {
       console.log('Creating new product:', productData.name);
-      const product = new Product(productData);
+      console.log('Product data received:', {
+        sellerId: productData.sellerId,
+        sellerName: productData.sellerName,
+        // Log other fields as needed
+      });
+
+      // Get the seller's city
+      const User = require('../models/User.js');
+      const seller = await User.findById(productData.sellerId);
+      const city = seller?.city || null;
+
+      // Ensure the field names match exactly what the model expects
+      const product = new Product({
+        name: productData.name,
+        description: productData.description,
+        price: productData.price,
+        quantity: productData.quantity,
+        category: productData.category,
+        sellerId: productData.sellerId, // Ensure correct case
+        sellerName: productData.sellerName, // Ensure correct case
+        sellerType: productData.sellerType,
+        city, // Add city from seller
+        // Other fields as needed
+      });
+
       const savedProduct = await product.save();
       console.log(`Product created successfully with ID: ${savedProduct._id}`);
       return savedProduct;
-    } catch (err) {
-      console.error('Error creating product:', err);
-      throw new Error(`Error creating product: ${err.message}`);
+    } catch (error) {
+      console.warn('Error creating product:', error);
+      throw new Error(`Failed to create product: ${error.message}`);
     }
   }
 
@@ -106,6 +130,34 @@ class ProductService {
     } catch (err) {
       console.error(`Error deleting product ${id}:`, err);
       throw new Error(`Error deleting product: ${err.message}`);
+    }
+  }
+
+  static async incrementViewCount(id) {
+    try {
+      console.log(`Incrementing view count for product ID: ${id}`);
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        console.error(`Invalid product ID format: ${id}`);
+        throw new Error('Invalid product ID format');
+      }
+
+      const product = await Product.findByIdAndUpdate(
+        id,
+        { $inc: { viewCount: 1 } },
+        { new: true }
+      );
+
+      if (!product) {
+        console.error(`Product not found with ID: ${id}`);
+        throw new Error('Product not found');
+      }
+
+      console.log(`Updated view count for product: ${product.name} to ${product.viewCount}`);
+      return product;
+    } catch (err) {
+      console.error(`Error updating view count for product ${id}:`, err);
+      throw new Error(`Error updating view count: ${err.message}`);
     }
   }
 }

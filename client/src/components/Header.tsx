@@ -1,8 +1,8 @@
-import { Bell, LogOut, User, Menu } from "lucide-react"
+import { Bell, LogOut, User, Menu, ShoppingBag } from "lucide-react"
 import { Button } from "./ui/button"
 import { ThemeToggle } from "./ui/theme-toggle"
 import { useAuth } from "@/contexts/AuthContext"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,10 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Sidebar } from "./Sidebar"
+import { useMobile } from "@/hooks/useMobile"
 
 export function Header() {
-  const { logout, userRole } = useAuth()
+  const { logout, userRole, user } = useAuth()
   const navigate = useNavigate()
+  const isMobile = useMobile()
 
   const handleLogout = () => {
     logout()
@@ -37,8 +39,17 @@ export function Header() {
               <Sidebar userType={userRole || 'vendor'} />
             </SheetContent>
           </Sheet>
-          <div className="text-xl font-bold">AgriConnect</div>
+          <Link to="/" className="text-xl font-bold flex items-center">
+            <ShoppingBag className="h-6 w-6 mr-2" />
+            AgriConnect
+          </Link>
         </div>
+
+        <nav className="hidden md:flex space-x-4 px-4">
+          <Link to="/" className="text-sm font-medium transition-colors hover:text-primary">
+            Home
+          </Link>
+        </nav>
 
         <div className="flex items-center gap-4">
           <ThemeToggle />

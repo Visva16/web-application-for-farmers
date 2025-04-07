@@ -8,9 +8,20 @@ const basicRoutes = require("./routes/index");
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
-const chatRoutes = require('./routes/chatRoutes');
+const vendorRoutes = require('./routes/vendorRoutes');
+const farmerRoutes = require('./routes/farmerRoutes');
+const priceAnalysisRoutes = require('./routes/priceAnalysisRoutes');
+const troubleshootingRoutes = require('./routes/troubleshootingRoutes');
+const discussionRoutes = require('./routes/discussionRoutes');
 const { connectDB } = require("./config/database");
 const cors = require("cors");
+
+// Required models
+require('./models/User');
+require('./models/Product');
+require('./models/Order');
+require('./models/Discussion');
+require('./models/Comment');
 
 if (!process.env.DATABASE_URL) {
   console.error("Error: DATABASE_URL variables in .env missing.");
@@ -68,7 +79,11 @@ app.use('/api', basicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/chats', chatRoutes);
+app.use('/api/vendors', vendorRoutes);
+app.use('/api/farmers', farmerRoutes);
+app.use('/api/price-analysis', priceAnalysisRoutes);
+app.use('/api/troubleshooting', troubleshootingRoutes);
+app.use('/api/discussions', discussionRoutes);
 
 // If no routes handled the request, it's a 404
 app.use((req, res, next) => {

@@ -1,0 +1,434 @@
+```typescript
+import React, { useEffect, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import {
+  getDiscussion,
+  getDiscussionPosts,
+  createPost,
+  createComment,
+  getPostComments,
+  createDiscussion,
+  deleteDiscussion,
+  updateDiscussion,
+  Discussion,
+  Post,
+  Comment,
+  PaginationData
+} from '@/api/discussions';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useAuth } from '@/contexts/AuthContext';
+import { format, formatDistanceToNow } from 'date-fns';
+import { useToast } from '@/hooks/useToast';
+import { Pagination } from '@/components/Pagination';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
+import ReplyForm from '@/components/ReplyForm';
+
+const DiscussionThreadPage: React.FC = () => {
+  const { discussionId } = useParams<{ discussionId: string }>();
+  const { user, setUser } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // State for discussion, posts, and comments
+  const [discussion, setDiscussion] = useState<Discussion | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<{ [postId: string]: Comment[] }>({});
+  const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [replyContent, setReplyContent] = useState('');
+  const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationData>({
+    total: 0,
+    pages: 1,
+    page: 1,
+    limit: 20
+  });
+
+  // State for creating/editing discussion
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('general');
+  const [tags, setTags] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const isCreateMode = discussionId === 'create';
+  const isCurrentUserAuthor = discussion && user && discussion.author._id === user.userId;
+
+  // Rehydrate session to prevent auto-logout on reload.
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Error fetching session:', error);
+      }
+    };
+    if (!user) {
+      fetchSession();
+    }
+  }, [user, setUser]);
+
+  // Fetch discussion details (skip if in create mode)
+  useEffect(() => {
+    const fetchDiscussionDetails = async () => {
+      try {
+        setLoading(true);
+        if (!discussionId) return;
+        if (isCreateMode) {
+          setLoading(false);
+          return;
+        }
+        const response = await getDiscussion(discussionId);
+        setDiscussion(response);
+        if (isEditMode) {
+          setTitle(response.title);
+          setDescription(response.description);
+          setCategory(response.category);
+          setTags(response.tags.join(', '));
+        }
+      } catch (error: any) {
+        console.error('Error loading discussion:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error.message || 'Failed to load discussion'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDiscussionDetails();
+  }, [discussionId, isCreateMode, isEditMode, toast]);
+
+  // Fetch discussion posts (responses)
+  useEffect(() => {
+    const fetchDiscussionPosts = async () => {
+      try {
+        setPostsLoading(true);
+        if (!discussionId || isCreateMode) {
+          setPostsLoading(false);
+          return;
+        }
+        const result = await getDiscussionPosts(discussionId, page);
+        setPosts(result.posts);
+        setPagination(result.pagination);
+      } catch (error: any) {
+        console.error('Error loading posts:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error.message || 'Failed to load posts'
+        });
+      } finally {
+        setPostsLoading(false);
+      }
+    };
+    fetchDiscussionPosts();
+  }, [discussionId, page, isCreateMode, toast]);
+
+  // Fetch comments for each post
+  useEffect(() => {
+    const fetchComments = async () => {
+      if (posts.length === 0) return;
+      try {
+        const newComments: { [postId: string]: Comment[] } = {};
+        for (const post of posts) {
+          const commentsList = await getPostComments(post._id);
+          newComments[post._id] = commentsList;
+        }
+        setComments(newComments);
+      } catch (error: any) {
+        console.error('Error fetching comments:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error.message || 'Failed to load comments'
+        });
+      }
+    };
+    fetchComments();
+  }, [posts, toast]);
+
+  // Handle submission of a new post (response)
+  const handleSubmitPost = async () => {
+    if (!newPostContent.trim()) return;
+    try {
+      setSubmitting(true);
+      if (!discussionId) return;
+      await createPost(discussionId, newPostContent);
+      const result = await getDiscussionPosts(discussionId, page);
+      setPosts(result.posts);
+      setPagination(result.pagination);
+      setNewPostContent('');
+      toast({
+        title: 'Success',
+        description: 'Response submitted successfully'
+      });
+    } catch (error: any) {
+      console.error('Error submitting post:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to submit response'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle submission of a reply to a post or a comment
+  const handleSubmitReply = async (postId: string) => {
+    if (!replyContent.trim() || !discussionId) return;
+    try {
+      setSubmitting(true);
+      // If replying to a comment, pass the parent comment ID
+      if (activeCommentId) {
+        await createComment(postId, discussionId, replyContent, activeCommentId);
+      } else {
+        await createComment(postId, discussionId, replyContent);
+      }
+      const updatedComments = await getPostComments(postId);
+      setComments(prev => ({ ...prev, [postId]: updatedComments }));
+      setReplyContent('');
+      setActivePostId(null);
+      setActiveCommentId(null);
+      toast({
+        title: 'Success',
+        description: 'Reply submitted successfully'
+      });
+    } catch (error: any) {
+      console.error('Error submitting reply:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to submit reply'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateDiscussion = async () => {
+    if (!title.trim() || !description.trim() || !category) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please fill in all required fields'
+      });
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+      const discussionData = { title, description, category: category.toLowerCase(), tags: tagsArray };
+      await createDiscussion(discussionData);
+      toast({
+        title: 'Success',
+        description: 'Discussion created successfully'
+      });
+      navigate('/discussions');
+    } catch (error: any) {
+      console.error('Error creating discussion:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to create discussion'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateDiscussion = async () => {
+    if (!title.trim() || !description.trim() || !category) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please fill in all required fields'
+      });
+      return;
+    }
+    try {
+      setSubmitting(true);
+      if (!discussionId) return;
+      const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+      const discussionData = { title, description, category: category.toLowerCase(), tags: tagsArray };
+      await updateDiscussion(discussionId, discussionData);
+      const updatedDiscussion = await getDiscussion(discussionId);
+      setDiscussion(updatedDiscussion);
+      setIsEditMode(false);
+      toast({
+        title: 'Success',
+        description: 'Discussion updated successfully'
+      });
+    } catch (error: any) {
+      console.error('Error updating discussion:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to update discussion'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteDiscussion = async () => {
+    try {
+      setSubmitting(true);
+      if (!discussionId) return;
+      await deleteDiscussion(discussionId);
+      toast({
+        title: 'Success',
+        description: 'Discussion deleted successfully'
+      });
+      navigate('/discussions');
+    } catch (error: any) {
+      console.error('Error deleting discussion:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to delete discussion'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleReplyAdded = async (reply: any) => {
+    if (!discussionId) return;
+
+    // Log the received reply for debugging
+    console.log("Reply added:", reply);
+
+    try {
+      // Refresh posts and comments after a reply is added
+      const result = await getDiscussionPosts(discussionId, page);
+      setPosts(result.posts);
+      setPagination(result.pagination);
+
+      // Refresh all comments for each post
+      if (result.posts.length > 0) {
+        const newComments: { [postId: string]: Comment[] } = {};
+        for (const post of result.posts) {
+          const commentsList = await getPostComments(post._id);
+          newComments[post._id] = commentsList;
+        }
+        setComments(newComments);
+      }
+
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Reply added successfully"
+      });
+    } catch (error: any) {
+      console.error("Error refreshing content after reply:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to refresh content"
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Skeleton className="h-10 w-10" />
+      </div>
+    );
+  }
+
+  if (isCreateMode) {
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-4">Create New Discussion</h1>
+        <div className="space-y-4">
+          <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Textarea placeholder="Description" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">General</SelectItem>
+              <SelectItem value="farming">Farming</SelectItem>
+              <SelectItem value="market">Market</SelectItem>
+              <SelectItem value="pricing">Pricing</SelectItem>
+              <SelectItem value="transport">Transport</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input placeholder="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
+          <Button onClick={handleCreateDiscussion} disabled={submitting}>
+            {submitting ? "Creating..." : "Create Discussion"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditMode && discussion) {
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-4">Edit Discussion</h1>
+        <div className="space-y-4">
+          <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Textarea placeholder="Description" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">General</SelectItem>
+              <SelectItem value="farming">Farming</SelectItem>
+              <SelectItem value="market">Market</SelectItem>
+              <SelectItem value="pricing">Pricing</SelectItem>
+              <SelectItem value="transport">Transport</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input placeholder="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
+          <div className="flex space-x-2">
+            <Button onClick={handleUpdateDiscussion} disabled={submitting}>
+              {submitting ? "Updating..." : "Update Discussion"}
+            </Button>
+            <Button variant="outline" onClick={() => setIsEditMode(false

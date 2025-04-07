@@ -1,132 +1,161 @@
-const { randomUUID } = require('crypto');
-
-const User = require('../models/User.js');
-const { generatePasswordHash, validatePassword } = require('../utils/password.js');
+const User = require('../models/User');
 
 class UserService {
-  static async list() {
+  /**
+   * Find vendors by city
+   * @param {string} city - The city to search for vendors
+   * @returns {Promise<Array>} Array of vendors in the specified city
+   */
+  static async findVendorsByCity(city) {
+    console.log(`UserService.findVendorsByCity called with city: ${city}`);
     try {
-      return User.find();
-    } catch (err) {
-      console.error('Error listing users:', err);
-      throw new Error(`Database error while listing users: ${err}`);
+      console.log(`Searching for vendors in city: ${city}`);
+
+      if (!city) {
+        console.error('City parameter is empty or undefined');
+        throw new Error('City parameter is required');
+      }
+
+      console.log(`Creating regex search for city: ${city}`);
+      const cityRegex = new RegExp(city, 'i'); // Case-insensitive search
+      console.log(`Executing User.find query with role: vendor and city regex`);
+
+      // Find all vendors (role = 'vendor') in the specified city
+      const vendors = await User.find({
+        role: 'vendor',
+        city: { $regex: cityRegex }
+      }).select('-password'); // Exclude password from results
+
+      console.log(`Query complete. Found ${vendors.length} vendors in ${city}`);
+      console.log(`Vendor cities: ${vendors.map(v => v.city).join(', ')}`);
+      return vendors;
+    } catch (error) {
+      console.error(`Error in findVendorsByCity service: ${error.message}`);
+      console.error(error.stack);
+      throw error;
     }
   }
 
-  static async get(id) {
+  /**
+   * Get a user by ID
+   * @param {string} userId - The user ID to retrieve
+   * @returns {Promise<Object>} The user object
+   */
+  static async get(userId) {
     try {
-      return User.findOne({ _id: id }).exec();
-    } catch (err) {
-      console.error(`Error getting user ${id}:`, err);
-      throw new Error(`Database error while getting the user by their ID: ${err}`);
+      console.log(`Getting user with ID: ${userId}`);
+
+      if (!userId) {
+        console.error('User ID is empty or undefined');
+        throw new Error('User ID is required');
+      }
+
+      const user = await User.findById(userId).select('-password');
+
+      if (!user) {
+        console.log(`No user found with ID: ${userId}`);
+        return null;
+      }
+
+      console.log(`Found user: ${user.email}, role: ${user.role}`);
+      return user;
+    } catch (error) {
+      console.error(`Error in UserService.get: ${error.message}`);
+      throw error;
     }
   }
 
+  /**
+   * Find all vendors
+   * @returns {Promise<Array>} Array of all vendors
+   */
+  static async findAllVendors() {
+    console.log('UserService.findAllVendors called');
+    try {
+      console.log('Fetching all vendors');
+
+      console.log('Executing User.find query with role: vendor');
+      // Find all users with role = 'vendor'
+      const vendors = await User.find({
+        role: 'vendor'
+      }).select('-password'); // Exclude password from results
+
+      console.log(`Query complete. Found ${vendors.length} total vendors`);
+      console.log(`Vendor cities: ${vendors.map(v => v.city || 'undefined').join(', ')}`);
+      return vendors;
+    } catch (error) {
+      console.error(`Error in findAllVendors service: ${error.message}`);
+      console.error(error.stack);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a user by email
+   * @param {string} email - The email to search for
+   * @returns {Promise<Object>} The user object
+   */
   static async getByEmail(email) {
     try {
-      return User.findOne({ email }).exec();
-    } catch (err) {
-      console.error(`Error getting user by email ${email}:`, err);
-      throw new Error(`Database error while getting the user by their email: ${err}`);
+      console.log(`Getting user with email: ${email}`);
+
+      if (!email) {
+        console.error('Email is empty or undefined');
+        throw new Error('Email is required');
+      }
+
+      const user = await User.findOne({ email });
+
+      if (!user) {
+        console.log(`No user found with email: ${email}`);
+        return null;
+      }
+
+      console.log(`Found user: ${user.email}, role: ${user.role}`);
+      return user;
+    } catch (error) {
+      console.error(`Error in UserService.getByEmail: ${error.message}`);
+      throw error;
     }
   }
 
-  static async update(id, data) {
-    try {
-      return User.findOneAndUpdate({ _id: id }, data, { new: true, upsert: false });
-    } catch (err) {
-      console.error(`Error updating user ${id}:`, err);
-      throw new Error(`Database error while updating user ${id}: ${err}`);
-    }
-  }
-
-  static async delete(id) {
-    try {
-      const result = await User.deleteOne({ _id: id }).exec();
-      return (result.deletedCount === 1);
-    } catch (err) {
-      console.error(`Error deleting user ${id}:`, err);
-      throw new Error(`Database error while deleting user ${id}: ${err}`);
-    }
-  }
-
+  /**
+   * Authenticate a user with email and password
+   * @param {string} email - User's email
+   * @param {string} password - User's password
+   * @returns {Promise<Object>} User object if authentication is successful
+   */
   static async authenticateWithPassword(email, password) {
-    if (!email) throw new Error('Email is required');
-    if (!password) throw new Error('Password is required');
-
     try {
-      const user = await User.findOne({email}).exec();
-      if (!user) return null;
+      console.log(`Authenticating user with email: ${email}`);
 
-      const passwordValid = await validatePassword(password, user.password);
-      if (!passwordValid) return null;
-
-      user.lastLoginAt = Date.now();
-      const updatedUser = await user.save();
-      return updatedUser;
-    } catch (err) {
-      console.error(`Error authenticating user ${email}:`, err);
-      throw new Error(`Database error while authenticating user ${email} with password: ${err}`);
-    }
-  }
-
-  static async create({ email, password, role, businessName, location, name = '' }) {
-    if (!email) throw new Error('Email is required');
-    if (!password) throw new Error('Password is required');
-    if (!role) throw new Error('Role is required');
-    if (!businessName) throw new Error('Business name is required');
-    if (!location) throw new Error('Location is required');
-
-    try {
-      console.log(`Creating new user with email: ${email} and role: ${role}`);
-      
-      console.log(`Validation complete for new user with email: ${email}`);
-
-      const existingUser = await UserService.getByEmail(email);
-      if (existingUser) {
-        console.warn(`User with email ${email} already exists`);
-        throw new Error('User with this email already exists');
-      }
-      
-      console.log(`No existing user found with email: ${email}, proceeding with creation`);
-      
-      console.log(`Generating password hash for new user: ${email}`);
-      const hash = await generatePasswordHash(password);
-      console.log(`Password hash generated successfully, creating user document`);
-
-      const user = new User({
-        email,
-        password: hash,
-        role,
-        businessName,
-        location,
-        name,
-      });
-
-      await user.save();
-      console.log(`New user created successfully with ID: ${user._id}`);
-      return user;
-    } catch (err) {
-      console.error(`Error creating new user:`, err);
-      throw new Error(`Database error while creating new user: ${err}`);
-    }
-  }
-
-  static async setPassword(user, password) {
-    if (!password) throw new Error('Password is required');
-
-    try {
-      console.log(`Setting password for user: ${user._id}`);
-      user.password = await generatePasswordHash(password); // eslint-disable-line
-
-      if (!user.isNew) {
-        await user.save();
+      if (!email || !password) {
+        console.error('Email or password is missing');
+        throw new Error('Email and password are required');
       }
 
+      // Find user by email
+      const user = await User.findOne({ email });
+
+      if (!user) {
+        console.log(`No user found with email: ${email}`);
+        throw new Error('Invalid email or password');
+      }
+
+      // Verify password - assuming you have a comparePassword method on the User model
+      // or a utility function elsewhere
+      const isPasswordValid = await user.comparePassword(password);
+
+      if (!isPasswordValid) {
+        console.log(`Invalid password for user: ${email}`);
+        throw new Error('Invalid email or password');
+      }
+
+      console.log(`User authenticated successfully: ${email}`);
       return user;
-    } catch (err) {
-      console.error(`Error setting password for user ${user._id}:`, err);
-      throw new Error(`Database error while setting user password: ${err}`);
+    } catch (error) {
+      console.error(`Error in authenticateWithPassword: ${error.message}`);
+      throw error;
     }
   }
 }

@@ -21,6 +21,7 @@ type RegisterForm = {
   password: string;
   businessName: string;
   location: string;
+  city: string;
 };
 
 export function Register() {
@@ -35,7 +36,7 @@ export function Register() {
   const onSubmit = async (data: RegisterForm) => {
     try {
       setLoading(true);
-      await registerUser(data.email, data.password, role, data.businessName, data.location);
+      await registerUser(data.email, data.password, role, data.businessName, data.location, data.city);
       toast({
         title: "Success",
         description: "Account created successfully",
@@ -107,6 +108,14 @@ export function Register() {
                 id="location"
                 placeholder="Your location"
                 {...register("location", { required: true })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                placeholder="Your city"
+                {...register("city", { required: true })}
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

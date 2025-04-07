@@ -1,8 +1,28 @@
 const express = require('express');
 const ProductService = require('../services/productService');
-const { requireUser } = require('./middleware/auth');
+const UserService = require('../services/userService');
+const auth = require('../middleware/auth');
+const fs = require('fs');
+
+// Simple implementation of requireUser middleware
+const requireUser = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication required'
+    });
+  }
+  next();
+};
 
 const router = express.Router();
+console.log('Loading productRoutes.js');
+
+// Add diagnostic logging
+console.log('Loading productRoutes.js - Full file contents');
+console.log('---------------------------------');
+console.log(fs.readFileSync(__filename, 'utf8'));
+console.log('---------------------------------');
 
 // Get all products
 router.get('/', async (req, res) => {
@@ -46,6 +66,12 @@ router.get('/:id', async (req, res) => {
   try {
     console.log(`Fetching product with ID: ${req.params.id}`);
     const product = await ProductService.getById(req.params.id);
+
+    // Update view count asynchronously - don't wait for it to complete
+    ProductService.incrementViewCount(req.params.id).catch(err => {
+      console.error('Error incrementing view count:', err);
+    });
+
     console.log(`Successfully retrieved product: ${product.name}`);
     res.status(200).json({ success: true, product });
   } catch (err) {
@@ -59,15 +85,46 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new product (requires authentication)
-router.post('/', requireUser, async (req, res) => {
+// Search vendors by location
+router.post('/by-location', auth, async (req, res) => {
   try {
-    const { user } = req;
-    console.log(`User ${user._id} attempting to create a new product`);
+    console.log('Searching vendors by location');
+    const { location } = req.body;
+    if (!location) {
+      console.log('Missing location in request body');
+      return res.status(400).json({ success: false, error: 'Location is required' });
+    }
+
+    console.log(`Searching for vendors in location: ${location}`);
+    const vendors = await UserService.findVendorsByCity(location);
+    console.log(`Found ${vendors.length} vendors in ${location}`);
+
+    return res.status(200).json({
+      success: true,
+      vendors
+    });
+  } catch (error) {
+    console.error('Error searching vendors by location:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create new product (requires authentication)
+router.post('/', auth, async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.sub || req.user._id;
+    console.log(`User ID from auth token: ${userId}`);
+
+    const user = await UserService.get(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    console.log(`User ${user.email} attempting to create a new product`);
 
     // Check if user is allowed to create products
     if (!user || !['vendor', 'farmer'].includes(user.role)) {
-      console.error(`User ${user._id} with role ${user.role} not authorized to create products`);
+      console.error(`User ${userId} with role ${user.role} not authorized to create products`);
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to create products'
@@ -76,7 +133,7 @@ router.post('/', requireUser, async (req, res) => {
 
     const productData = {
       ...req.body,
-      sellerId: user._id,
+      sellerId: userId,
       sellerName: user.businessName,
       sellerType: user.role
     };
@@ -93,7 +150,7 @@ router.post('/', requireUser, async (req, res) => {
       });
     }
 
-    console.log('Creating new product:', productData.name);
+    console.log(`Creating product with sellerId: ${userId}, sellerName: ${user.businessName}`);
     const product = await ProductService.create(productData);
     console.log(`Product created successfully with ID: ${product._id}`);
 
@@ -102,9 +159,9 @@ router.post('/', requireUser, async (req, res) => {
       product,
       message: 'Product created successfully'
     });
-  } catch (err) {
-    console.error('Error creating product:', err);
-    res.status(500).json({ success: false, error: err.message });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

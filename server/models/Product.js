@@ -57,9 +57,54 @@ const productSchema = new mongoose.Schema({
       price: Number
     }],
     default: []
+  },
+  city: {
+    type: String,
+    required: false,
+    index: true,
+  },
+  // New demand-related fields
+  viewCount: {
+    type: Number,
+    default: 0
+  },
+  orderCount: {
+    type: Number,
+    default: 0
+  },
+  lastOrderDate: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true
+});
+
+// Add pre-save hook to populate city from seller's data
+productSchema.pre('save', async function(next) {
+  if (this.isNew || this.isModified('sellerId')) {
+    try {
+      // Log the incoming data
+      console.log('Pre-save Product hook - Data:', {
+        sellerId: this.sellerId,
+        sellerName: this.sellerName
+      });
+
+      if (this.sellerId) {
+        const seller = await mongoose.model('User').findById(this.sellerId);
+        if (seller && seller.city) {
+          this.city = seller.city;
+          console.log(`Setting product city to ${this.city} from seller`);
+        }
+      }
+      next();
+    } catch (error) {
+      console.error('Error in product pre-save hook:', error);
+      next(error);
+    }
+  } else {
+    next();
+  }
 });
 
 // Add indexing for better query performance

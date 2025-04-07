@@ -1,11 +1,12 @@
 const express = require('express');
+const router = express.Router();
 const UserService = require('../services/userService.js');
-const { requireUser } = require('./middleware/auth.js');
 const { generateAccessToken, generateRefreshToken } = require('../utils/auth.js');
+const { requireUser } = require('./middleware/auth.js');
+const User = require('../models/User.js');
 const jwt = require('jsonwebtoken');
 
-const router = express.Router();
-
+// Login route
 router.post('/login', async (req, res) => {
   try {
     console.log('Login endpoint hit with email:', req.body.email);
@@ -17,7 +18,7 @@ router.post('/login', async (req, res) => {
       return sendError('Email and password are required');
     }
 
-    // First check if the user exists
+    // Check if the user exists
     const userExists = await UserService.getByEmail(email);
     if (!userExists) {
       console.log(`Login attempt failed: User with email ${email} not found`);
@@ -26,28 +27,27 @@ router.post('/login', async (req, res) => {
 
     console.log(`User found with email ${email}, attempting password validation`);
 
-    // Now attempt authentication with password
+    // Authenticate with password
     const user = await UserService.authenticateWithPassword(email, password);
-
     if (user) {
       console.log(`User authenticated successfully: ${email} with role ${user.role}`);
-
-      // Log all user fields to verify they're available
       console.log('User data to be returned:', {
         userId: user._id,
         email: user.email,
         role: user.role,
         businessName: user.businessName,
-        location: user.location
+        location: user.location,
+        city: user.city
       });
 
+      // Generate tokens using the full user object
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
 
+      // Save the refresh token to the user record
       user.refreshToken = refreshToken;
       await user.save();
 
-      // Return specific properties that the frontend expects
       return res.json({
         accessToken,
         refreshToken,
@@ -55,7 +55,8 @@ router.post('/login', async (req, res) => {
         userId: user._id,
         email: user.email,
         businessName: user.businessName,
-        location: user.location
+        location: user.location,
+        city: user.city || ''
       });
     } else {
       console.log(`Authentication failed for email: ${email} - incorrect password`);
@@ -67,10 +68,19 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Register route
 router.post('/register', async (req, res) => {
   try {
     console.log('Registration endpoint hit with data:', req.body);
-    const { email, password, role, businessName, location } = req.body;
+    const { email, password, role, businessName, location, city } = req.body;
+    console.log('Register request body:', {
+      email,
+      role,
+      businessName,
+      location,
+      city,
+      password: password ? '[REDACTED]' : undefined
+    });
 
     // Validate required fields
     if (!email || !password || !role || !businessName || !location) {
@@ -88,12 +98,12 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Add additional logging as per instructions
     console.log('All validation passed, proceeding to create user with:', {
       email,
       role,
       businessName,
       location,
+      city,
       passwordProvided: !!password
     });
 
@@ -103,18 +113,19 @@ router.post('/register', async (req, res) => {
       password,
       role,
       businessName,
-      location
+      location,
+      city
     });
 
-    // Generate tokens
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    // Generate tokens using the full user object
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
     // Update user with refresh token
-    await UserService.update(user._id, { refreshToken });
+    user.refreshToken = refreshToken;
+    await user.save();
 
-    // Return response with user and tokens
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
@@ -123,7 +134,8 @@ router.post('/register', async (req, res) => {
           email: user.email,
           role: user.role,
           businessName: user.businessName,
-          location: user.location
+          location: user.location,
+          city: user.city
         },
         accessToken,
         refreshToken
@@ -141,65 +153,62 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: err.message
     });
   }
 });
 
+// Logout route
 router.post('/logout', async (req, res) => {
-  const { email } = req.body;
-
-  const user = await User.findOne({ email });
-  if (user) {
-    user.refreshToken = null;
-    await user.save();
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (user) {
+      user.refreshToken = null;
+      await user.save();
+    }
+    return res.status(200).json({ message: 'User logged out successfully.' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return res.status(500).json({ message: 'An error occurred during logout' });
   }
-
-  res.status(200).json({ message: 'User logged out successfully.' });
 });
 
+// Refresh token route
 router.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body;
-
   if (!refreshToken) {
     return res.status(401).json({
       success: false,
       message: 'Refresh token is required'
     });
   }
-
   try {
-    // Verify the refresh token
+    // Verify the refresh token using the secret
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-
-    // Find the user
+    // Find the user using the decoded token's subject
     const user = await UserService.get(decoded.sub);
-
     if (!user) {
       return res.status(403).json({
         success: false,
         message: 'User not found'
       });
     }
-
     if (user.refreshToken !== refreshToken) {
       return res.status(403).json({
         success: false,
         message: 'Invalid refresh token'
       });
     }
-
     // Generate new tokens
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
-
-    // Update user's refresh token in database
+    // Update user's refresh token in the database
     user.refreshToken = newRefreshToken;
     await user.save();
 
-    // Return new tokens
     return res.status(200).json({
       success: true,
       data: {
@@ -207,17 +216,14 @@ router.post('/refresh', async (req, res) => {
         refreshToken: newRefreshToken
       }
     });
-
   } catch (error) {
     console.error(`Token refresh error: ${error.message}`);
-
     if (error.name === 'TokenExpiredError') {
       return res.status(403).json({
         success: false,
         message: 'Refresh token has expired'
       });
     }
-
     return res.status(403).json({
       success: false,
       message: 'Invalid refresh token'
@@ -225,8 +231,55 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+// Get current user info route
 router.get('/me', requireUser, async (req, res) => {
-  return res.status(200).json(req.user);
+  try {
+    const user = await UserService.get(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    return res.json({
+      user: {
+        _id: user._id,
+        email: user.email,
+        role: user.role,
+        businessName: user.businessName,
+        location: user.location,
+        city: user.city
+      }
+    });
+  } catch (error) {
+    console.error('Get user info error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Update user route
+router.put('/update', requireUser, async (req, res) => {
+  try {
+    const { businessName, location, city } = req.body;
+    const updates = {};
+    if (businessName) updates.businessName = businessName;
+    if (location) updates.location = location;
+    if (city !== undefined) updates.city = city;
+    const user = await UserService.update(req.user.id, updates);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    return res.json({
+      user: {
+        _id: user._id,
+        email: user.email,
+        role: user.role,
+        businessName: user.businessName,
+        location: user.location,
+        city: user.city
+      }
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

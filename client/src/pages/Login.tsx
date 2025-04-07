@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -111,6 +111,12 @@ export function Login() {
           >
             Don't have an account? Sign up
           </Button>
+          <div className="text-sm text-center mt-4">
+            <span className="text-muted-foreground">Having trouble? </span>
+            <Link to="/troubleshooting" className="text-primary hover:underline">
+              Visit the troubleshooting guide
+            </Link>
+          </div>
         </CardFooter>
       </Card>
     </div>

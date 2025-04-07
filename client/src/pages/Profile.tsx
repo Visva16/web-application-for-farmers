@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ import {
 
 export function Profile() {
   const { toast } = useToast();
-  const { userRole } = useAuth();
+  const { userRole, userInfo } = useAuth();
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState("en");
   const [timezone, setTimezone] = useState("utc");
@@ -40,7 +40,7 @@ export function Profile() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update profile",
+        description: error.message || "Failed to update profile",
       });
     } finally {
       setLoading(false);
@@ -60,7 +60,7 @@ export function Profile() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to change password",
+        description: error.message || "Failed to change password",
       });
     } finally {
       setLoading(false);
@@ -113,15 +113,37 @@ export function Profile() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="john@example.com" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="john@example.com" 
+                      defaultValue={userInfo.email || ''} 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="business">
                       {userRole === 'vendor' ? 'Business Name' : 'Farm Name'}
                     </Label>
+                    <Input
+                      id="business"
+                      placeholder={userRole === 'vendor' ? 'Your Business Name' : 'Your Farm Name'}
+                      defaultValue={userInfo.businessName || ''}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
                     <Input 
-                      id="business" 
-                      placeholder={userRole === 'vendor' ? 'Your Business Name' : 'Your Farm Name'} 
+                      id="location" 
+                      placeholder="Your location" 
+                      defaultValue={userInfo.location || ''}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="Your city"
+                      defaultValue={userInfo.city || ''}
                     />
                   </div>
                   <div className="space-y-2">

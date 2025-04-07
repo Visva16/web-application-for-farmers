@@ -8,6 +8,7 @@ interface UserInfo {
   email?: string;
   businessName?: string;
   location?: string;
+  city?: string;
   _id?: string;
   role?: UserRole;
 }
@@ -18,7 +19,7 @@ type AuthContextType = {
   userInfo: UserInfo;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, role: UserRole, businessName: string, location: string) => Promise<void>;
+  register: (email: string, password: string, role: UserRole, businessName: string, location: string, city?: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -60,7 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: payload.email,
             role: payload.role,
             businessName: payload.businessName,
-            location: payload.location
+            location: payload.location,
+            city: payload.city
           };
 
           setUserInfo(userInfo);
@@ -129,7 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: response.email,
           role: response.role,
           businessName: response.businessName,
-          location: response.location
+          location: response.location,
+          city: response.city
         };
         localStorage.setItem("userInfo", JSON.stringify(userInfo));
         setUserInfo(userInfo);
@@ -154,10 +157,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, role: UserRole, businessName: string, location: string) => {
+  const register = async (email: string, password: string, role: UserRole, businessName: string, location: string, city?: string) => {
     try {
       setLoading(true);
-      const response = await apiRegister(email, password, role, businessName, location);
+      const response = await apiRegister(email, password, role, businessName, location, city);
 
       // Store the access token from successful registration
       if (response.data && response.data.accessToken) {
@@ -172,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserRole(response.data.user.role);
         setUserInfo(response.data.user);
         setIsAuthenticated(true);
-        
+
         console.log("User registered successfully:", response.data);
         return response;
       } else {

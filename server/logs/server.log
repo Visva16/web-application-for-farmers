@@ -1,0 +1,11 @@
+Successfully read access token secret from file
+Successfully read refresh token secret from file
+Successfully read access token secret from file
+Server running at http://localhost:3000
+MongoDB Connected: localhost
+Loading productRoutes.js
+Route definitions:
+About to define route at line 64
+Router methods available: get,post,put,delete,patch,options,head
+Error: Route.post() requires a callback function but got a [object Undefined]
+    at Object.<anonymous> (/Users/kartheekreddy/Downloads/pythagora-core-backup-1-3-3-b76198b2 /pythagora-core/workspace/major-project-2/server/routes/productRoutes.js:64:8)

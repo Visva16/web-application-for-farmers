@@ -1,98 +1,79 @@
-```markdown
 # Major Project 2
 
-Major Project 2 is a comprehensive platform that connects farmers directly with vendors for buying and selling produce. The platform facilitates an efficient and transparent flow where vendors can browse, negotiate, and place orders for produce listed by farmers, and vice versa. It also allows vendors to list their own products if they engage in repackaging or processing.
+Major Project 2 is a comprehensive platform designed to connect farmers and vendors, enabling direct transactions and fostering a more efficient marketplace ecosystem. The application incorporates advanced features such as location-based searches, competitive pricing insights, demand-wise pricing recommendations, and robust community engagement tools. Additionally, the platform includes troubleshooting functionalities to enhance usability and stability.
 
 ## Overview
 
-The platform is built with a modern architecture that includes a ReactJS-based frontend using the Vite devserver and an Express.js-based backend. The frontend is styled with Tailwind CSS and uses shadcn-ui for components. The backend is designed to provide RESTful API endpoints and interfaces with a MongoDB database using Mongoose.
+Major Project 2 leverages modern web technologies to deliver a seamless user experience. The architecture involves a ReactJS-based frontend powered by Vite, with a Tailwind CSS framework for styling and Shadcn-ui component library for reusable UI components. The backend is built using Express.js, integrating a MongoDB database with Mongoose for handling data operations.
 
 ### Project Structure
 
-#### Frontend
-- **Framework:** ReactJS
-- **Development Server:** Vite
-- **Component Library and Styling:** shadcn-ui, Tailwind CSS
-- **Routing:** `react-router-dom`
-- **Folder Structure:**
-  - `client/`: Root directory for the frontend
-  - `client/src/pages/`: Contains page components
-  - `client/src/components/`: Contains UI components
-  - `client/src/api/`: Contains API request functions with mock data
+- **Frontend**
+  - Located in the `client/` folder, implemented using ReactJS with Vite.
+  - Client-side routing handled by `react-router-dom`.
+  - State management and API interactions facilitated by React hooks and context.
+  - Uses Tailwind CSS for styling and Shadcn-ui component library for UI components.
+  - Mock data and API requests handled in the `client/src/api/` folder.
 
-#### Backend
-- **Framework:** Express.js
-- **Database:** MongoDB with Mongoose
-- **Authentication:** Token-based with JWT
-- **Folder Structure:**
-  - `server/`: Root directory for the backend
-  - `server/routes/`: Contains route definitions
-  - `server/models/`: Contains Mongoose models
-  - `server/services/`: Contains business logic and service classes
+- **Backend**
+  - Located in the `server/` folder, implemented using Express.js.
+  - REST API endpoints defined in the `api/` folder.
+  - MongoDB database management via Mongoose.
+  - Token-based authentication using JWTs (access and refresh tokens).
+  - Concurrency handled by scripts in the `server/scripts/` folder.
+
+The development environment is configured to run both frontend and backend simultaneously using the `npm run start` command, facilitated by the `concurrently` package.
 
 ## Features
 
-### Vendor Features
-- **Product Listing:** Vendors can optionally list their own processed or repackaged products.
-- **Ordering:** Vendors can browse produce listings, place orders, and negotiate prices with farmers.
-- **Order Management:** Vendors can track the status of their orders and communicate with farmers.
-
-### Farmer Features
-- **Produce Listing:** Farmers can list their produce with detailed descriptions, prices, and images.
-- **Receiving Orders:** Farmers receive and manage orders placed by vendors, with the ability to negotiate and confirm orders.
-- **Order Fulfillment:** Farmers can update order statuses and provide shipping details and tracking information.
+- **Vendor Product Listing**: Vendors can list processed or repackaged products with detailed forms and validation.
+- **Vendor Ordering Process**: Vendors can browse produce listings from farmers and initiate orders with negotiation capabilities.
+- **Farmers Selling Directly**: Facilitates direct sales from farmers to vendors with transparent order management.
+- **Location-Based Searching**: Users can locate vendors based on city-level data, enhancing searchability.
+- **Competitive Pricing Analysis**: Vendors gain insight into competitive pricing by comparing similar products.
+- **Demand-Wise Pricing Recommendations**: Dynamic pricing suggestions based on product demand metrics.
+- **Community Engagement**: Users can interact through a re-introduced discussions feature.
+- **Troubleshooting and Stability Enhancements**: Guidance and fixes for common client-side issues, including session management improvements.
 
 ## Getting Started
 
 ### Requirements
 
-To set up and run the project locally, you will need the following tools installed on your machine:
-- Node.js (version 14.x or later)
-- npm (Node Package Manager)
-- MongoDB (local installation or a remote instance)
+Ensure the following technologies are installed on your computer to run the project:
+
+- Node.js (LTS version recommended)
+- npm (comes with Node.js)
+- MongoDB (running locally or accessible via a connection string)
 
 ### Quickstart
 
-1. **Clone the repository:**
-   ```bash
+1. **Clone the repository**:
+   ```sh
    git clone <repository-url>
    cd <repository-directory>
    ```
 
-2. **Install dependencies:**
-   - Install frontend dependencies:
-     ```bash
-     cd client
-     npm install
-     ```
+2. **Install dependencies**:
+   ```sh
+   npm install
+   ```
 
-   - Install backend dependencies:
-     ```bash
-     cd ../server
-     npm install
-     ```
+3. **Set up environment variables**:
+   Create a `.env` file in the `server/` directory and define your environment variables like MongoDB connection URL and JWT secrets.
 
-3. **Set up environment variables:**
-   - Create a `.env` file in the `server/` directory and add the following environment variables:
-     ```
-     PORT=3000
-     DATABASE_URL=mongodb://localhost:27017/major-project-2
-     JWT_SECRET=your-jwt-secret-key
-     JWT_REFRESH_SECRET=your-jwt-refresh-secret-key
-     ACCESS_TOKEN_SECRET=your_access_token_secret_here
-     REFRESH_TOKEN_SECRET=your_refresh_token_secret_here
-     ```
+4. **Start the application**:
+   ```sh
+   npm run start
+   ```
+   This will concurrently run both the frontend (on port 5173) and the backend (on port 3000).
 
-4. **Run the application:**
-   - Start both frontend and backend servers concurrently:
-     ```bash
-     cd server
-     npm run start
-     ```
+5. **Access the application**:
+   Open your browser and navigate to `http://localhost:5173` to start using Major Project 2.
 
-   The frontend will be available at `http://localhost:5173` and the backend at `http://localhost:3000`.
+### License
 
-## License
+The project is proprietary and is not open source. All rights are reserved.
 
-The project is proprietary. Copyright (c) 2024.
+```
+© 2024. All rights reserved.
 ```

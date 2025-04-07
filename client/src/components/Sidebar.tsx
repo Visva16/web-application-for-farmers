@@ -4,7 +4,8 @@ import {
   Package,
   ShoppingCart,
   Store,
-  Settings
+  Settings,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,20 +14,26 @@ interface SidebarProps {
 }
 
 export function Sidebar({ userType }: SidebarProps) {
-  const commonItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: `/${userType}` },
+  // Define navigation items explicitly with NO discussion related items
+  const vendorItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', href: `/vendor` },
     { icon: Store, label: 'Marketplace', href: '/marketplace' },
-    { icon: Settings, label: 'Settings', href: `/${userType}/profile` },
+    { icon: ShoppingCart, label: 'Orders', href: `/vendor/orders` },
+    { icon: MessageSquare, label: 'Discussions', href: '/discussions' },
+    { icon: Settings, label: 'Settings', href: `/vendor/profile` },
   ];
 
-  const roleSpecificItems = userType === 'vendor' ? [
-    { icon: ShoppingCart, label: 'Orders', href: `/${userType}/orders` },
-  ] : [
-    { icon: Package, label: 'Products', href: `/${userType}/products` },
-    { icon: ShoppingCart, label: 'Orders', href: `/${userType}/orders` },
+  const farmerItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', href: `/farmer` },
+    { icon: Store, label: 'Marketplace', href: '/marketplace' },
+    { icon: Package, label: 'Products', href: `/farmer/products` },
+    { icon: ShoppingCart, label: 'Orders', href: `/farmer/orders` },
+    { icon: MessageSquare, label: 'Discussions', href: '/discussions' },
+    { icon: Settings, label: 'Settings', href: `/farmer/profile` },
   ];
 
-  const navItems = [...commonItems.slice(0, 2), ...roleSpecificItems, commonItems[2]];
+  // Choose the appropriate items based on user role
+  const navItems = userType === 'vendor' ? vendorItems : farmerItems;
 
   return (
     <div className="w-64 border-r bg-card">

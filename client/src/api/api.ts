@@ -1,24 +1,25 @@
 import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 import { refreshToken } from './auth';
 
-// Add logging to see the base URL and config
+// Log base URL for debugging
 console.log('API base URL:', import.meta.env.VITE_API_BASE_URL || '/api');
 
+// Create an Axios instance with session persistence enabled
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  // Ensures that cookies (and hence the session) are sent with every request
   withCredentials: true,
-  validateStatus: (status) => {
-    return status >= 200 && status < 300;
-  },
+  validateStatus: (status) => status >= 200 && status < 300,
 });
+
 console.log('API client configuration:', api.defaults);
 
 let accessToken: string | null = null;
 
-// Axios request interceptor: Attach access token to headers
+// Request interceptor: Attach access token from localStorage to the headers
 api.interceptors.request.use(
   (config: AxiosRequestConfig): AxiosRequestConfig => {
     if (!accessToken) {
@@ -39,18 +40,18 @@ api.interceptors.request.use(
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
 
-// Function to subscribe to the refresh token process
+// Subscribe to token refresh events
 const subscribeTokenRefresh = (callback: (token: string) => void) => {
   refreshSubscribers.push(callback);
 };
 
-// Function to notify all subscribers that the token has been refreshed
+// Notify all subscribers with the new token
 const onRefreshed = (token: string) => {
   refreshSubscribers.forEach(callback => callback(token));
   refreshSubscribers = [];
 };
 
-// Axios response interceptor: Handle 401 errors
+// Response interceptor: Handle 401 errors and perform token refresh
 api.interceptors.response.use(
   (response) => {
     console.log(`Response from ${response.config.url}:`, {
@@ -65,12 +66,12 @@ api.interceptors.response.use(
 
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    // If error is 401 and we haven't already attempted to refresh
+    // If 401 error occurs and we haven't retried yet, attempt token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // If we're already refreshing, wait for the new token
+        // If token refresh is already in progress, queue the request
         return new Promise((resolve) => {
-          subscribeTokenRefresh((token) => {
+          subscribeTokenRefresh((token: string) => {
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
@@ -88,38 +89,39 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
+        // Attempt to refresh token
         const response = await refreshToken(refreshTokenValue);
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response;
 
+        // Store new tokens
         localStorage.setItem('accessToken', newAccessToken);
         localStorage.setItem('refreshToken', newRefreshToken);
         accessToken = newAccessToken;
 
-        // Update auth header for the original request
+        // Update authorization header for original request
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         }
 
-        // Notify all the requests waiting for the token
+        // Notify all waiting requests with the new token
         onRefreshed(newAccessToken);
         isRefreshing = false;
 
-        // Retry the original request
+        // Retry the original request with updated token
         return api(originalRequest);
       } catch (refreshError) {
         console.error('Token refresh error:', refreshError);
         isRefreshing = false;
 
-        // Clear tokens if refresh fails
+        // Clear stored tokens and related user info
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userInfo');
         accessToken = null;
 
-        // Redirect to login
+        // Redirect to login page on refresh failure
         window.location.href = '/login';
-
         return Promise.reject(refreshError);
       }
     }
