@@ -1,6 +1,6 @@
-# Major Project 2
+# Major Project - web application for farmers
 
-Major Project 2 is a comprehensive platform designed to connect farmers and vendors, enabling direct transactions and fostering a more efficient marketplace ecosystem. The application incorporates advanced features such as location-based searches, competitive pricing insights, demand-wise pricing recommendations, and robust community engagement tools. Additionally, the platform includes troubleshooting functionalities to enhance usability and stability.
+Major Project is a comprehensive platform designed to connect farmers and vendors, enabling direct transactions and fostering a more efficient marketplace ecosystem. The application incorporates advanced features such as location-based searches, competitive pricing insights, demand-wise pricing recommendations, and robust community engagement tools. Additionally, the platform includes troubleshooting functionalities to enhance usability and stability.
 
 ## Overview
 
