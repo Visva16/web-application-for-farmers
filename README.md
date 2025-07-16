@@ -4,7 +4,7 @@ Major Project is a comprehensive platform designed to connect farmers and vendor
 
 ## Overview
 
-Major Project 2 leverages modern web technologies to deliver a seamless user experience. The architecture involves a ReactJS-based frontend powered by Vite, with a Tailwind CSS framework for styling and Shadcn-ui component library for reusable UI components. The backend is built using Express.js, integrating a MongoDB database with Mongoose for handling data operations.
+Major Project leverages modern web technologies to deliver a seamless user experience. The architecture involves a ReactJS-based frontend powered by Vite, with a Tailwind CSS framework for styling and Shadcn-ui component library for reusable UI components. The backend is built using Express.js, integrating a MongoDB database with Mongoose for handling data operations.
 
 ### Project Structure
 
@@ -68,7 +68,7 @@ Ensure the following technologies are installed on your computer to run the proj
    This will concurrently run both the frontend (on port 5173) and the backend (on port 3000).
 
 5. **Access the application**:
-   Open your browser and navigate to `http://localhost:5173` to start using Major Project 2.
+   Open your browser and navigate to `http://localhost:5173` to start using Major Project.
 
 ### License
 
